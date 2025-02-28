@@ -15,6 +15,7 @@ func main() {
 	}
 
 	mux.Handle("/", fileServer)
+	mux.Handle("/assets/logo.png", fileServer)
 
 	server.ListenAndServe()
 }
