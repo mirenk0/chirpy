@@ -14,14 +14,14 @@ func main() {
 	mux := http.NewServeMux()
 	apiCfg := &apiConfig{}
 
-	mux.HandleFunc("/healthz", readinessHandler)
+	mux.HandleFunc("GET /healthz", readinessHandler)
 
 	fileServer := http.FileServer(http.Dir("."))
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", fileServer)))
 
-	mux.HandleFunc("/metrics", apiCfg.metricsHandler)
+	mux.HandleFunc("GET /metrics", apiCfg.metricsHandler)
 
-	mux.HandleFunc("/reset", apiCfg.resetHandler)
+	mux.HandleFunc("POST /reset", apiCfg.resetHandler)
 
 	mux.Handle("/assets/logo.png", fileServer)
 
