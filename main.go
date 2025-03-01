@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
 }
+
+var forbiddenWords = []string{"kerfuffle", "sharbert", "fornax"}
 
 const maxChirpLength = 140
 
@@ -22,7 +25,7 @@ type errorResponse struct {
 }
 
 type successResponse struct {
-	Valid bool `json:"valid"`
+	CleanedBody string `json:"cleaned_body"`
 }
 
 func main() {
@@ -72,8 +75,10 @@ func chirpValidateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cleanedBody := censorText(req.Body, forbiddenWords)
+
 	w.WriteHeader(http.StatusOK)
-	resp, _ := json.Marshal(successResponse{Valid: true})
+	resp, _ := json.Marshal(successResponse{CleanedBody: cleanedBody})
 	w.Write(resp)
 }
 
@@ -88,6 +93,22 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 		cfg.fileserverHits.Add(1)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func censorText(text string, words []string) string {
+	wordsInText := strings.Split(text, " ")
+
+	for i, word := range wordsInText {
+		lowerWord := strings.ToLower(word)
+		for _, forbidden := range words {
+			if lowerWord == forbidden {
+				wordsInText[i] = "****"
+				break
+			}
+		}
+	}
+
+	return strings.Join(wordsInText, " ")
 }
 
 func (cfg *apiConfig) metricsHandler(w http.ResponseWriter, r *http.Request) {
