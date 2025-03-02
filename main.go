@@ -1,15 +1,21 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *sql.DB
 }
 
 var forbiddenWords = []string{"kerfuffle", "sharbert", "fornax"}
@@ -29,8 +35,28 @@ type successResponse struct {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Warning: Could not load .env file")
+	}
+
+	// Get DB connection string
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		fmt.Println("Error: DB_URL not set in environment")
+		return
+	}
+
+	// Open database connection
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Println("Error connecting to database:", err)
+		return
+	}
+	defer db.Close()
+
 	mux := http.NewServeMux()
-	apiCfg := &apiConfig{}
+	apiCfg := &apiConfig{db: db}
 
 	mux.HandleFunc("GET /api/healthz", readinessHandler)
 
@@ -51,7 +77,7 @@ func main() {
 	}
 
 	fmt.Println("Starting server on :8080...")
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 	}
